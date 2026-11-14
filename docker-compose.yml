@@ -1,0 +1,139 @@
+# AIDP-FAB infrastructure: Kafka + Kafka Connect + PostgreSQL + Flink + Kafbat UI
+#
+#   docker compose up -d        start everything
+#   docker compose ps           check status
+#   docker compose down         stop (data is kept in Docker volumes)
+#   docker compose down -v      stop AND delete all Kafka/Postgres data
+#
+# Before the first start, download the connector plugins once:
+#   python setup_demo.py download
+# After starting, create topics, the Postgres sink and the Flink jobs:
+#   python setup_demo.py init
+#
+# Ports on your Mac:
+#   9092  Kafka           (the Python demo connects here)
+#   8083  Kafka Connect   REST API
+#   5433  PostgreSQL      user=fab  password=fab  database=fab
+#   8081  Flink web UI    http://localhost:8081
+#   8090  Kafbat UI       http://localhost:8090  (topics, messages, consumer groups, connectors)
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:8.3.2
+    hostname: kafka
+    container_name: kafka          # keeps "docker exec kafka ..." commands working
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      # Two client listeners:
+      #   PLAINTEXT      kafka:29092     used by other containers (Kafka Connect)
+      #   PLAINTEXT_HOST localhost:9092  used by programs on your Mac (the Python demo)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    ports:
+      - "5433:5432"                # 5433 on your Mac, so it doesn't clash with a local PostgreSQL on 5432
+    environment:
+      POSTGRES_USER: fab
+      POSTGRES_PASSWORD: fab
+      POSTGRES_DB: fab
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./connect/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+
+  connect:
+    image: confluentinc/cp-kafka-connect:8.3.2
+    hostname: connect
+    container_name: connect
+    depends_on:
+      - kafka
+      - postgres
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:29092
+      CONNECT_LISTENERS: http://0.0.0.0:8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_GROUP_ID: aidp-fab-connect
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      # ./connect-plugins on your Mac is where "python setup_demo.py download" puts the JDBC connector
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components,/plugins
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx768m
+    volumes:
+      - ./connect-plugins:/plugins:ro
+
+  flink-jobmanager:
+    image: flink:1.20
+    hostname: flink-jobmanager
+    container_name: flink-jobmanager
+    command: jobmanager
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.memory.process.size: 1024m
+        parallelism.default: 1
+    volumes:
+      - ./flink-lib:/opt/flink/lib/aidp:ro   # Kafka connector jar (python setup_demo.py download)
+      - ./flink:/opt/flink/sql:ro            # aidp-fab.sql
+
+  flink-taskmanager:
+    image: flink:1.20
+    hostname: flink-taskmanager
+    container_name: flink-taskmanager
+    command: taskmanager
+    depends_on:
+      - flink-jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        taskmanager.memory.process.size: 1536m
+        parallelism.default: 1
+    volumes:
+      - ./flink-lib:/opt/flink/lib/aidp:ro
+
+  kafbat-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: kafbat-ui
+    depends_on:
+      - kafka
+      - connect
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: AIDP-FAB
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+      JAVA_OPTS: -Xmx384m
+
+volumes:
+  kafka-data:
+  postgres-data:

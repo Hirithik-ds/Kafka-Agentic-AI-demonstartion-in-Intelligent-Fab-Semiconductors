@@ -1,0 +1,55 @@
+{
+  "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+  "tasks.max": "1",
+
+  "topics": "fab.equipment.sensor-readings,fab.equipment.commands,fab.lot.events,fab.alerts,fab.maintenance.work-orders,fab.ai.incident-reports",
+
+  "connection.url": "jdbc:postgresql://postgres:5432/fab?stringtype=unspecified",
+  "connection.user": "fab",
+  "connection.password": "fab",
+
+  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+  "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+
+  "transforms": "wrap,addTimestamp,toSensorReadings,toEquipmentCommands,toLotEvents,toAlerts,toWorkOrders,toAiReports",
+
+  "transforms.wrap.type": "org.apache.kafka.connect.transforms.HoistField$Value",
+  "transforms.wrap.field": "event",
+
+  "transforms.addTimestamp.type": "org.apache.kafka.connect.transforms.InsertField$Value",
+  "transforms.addTimestamp.timestamp.field": "kafka_timestamp",
+
+  "transforms.toSensorReadings.type": "org.apache.kafka.connect.transforms.RegexRouter",
+  "transforms.toSensorReadings.regex": "fab\\.equipment\\.sensor-readings",
+  "transforms.toSensorReadings.replacement": "sensor_readings",
+
+  "transforms.toEquipmentCommands.type": "org.apache.kafka.connect.transforms.RegexRouter",
+  "transforms.toEquipmentCommands.regex": "fab\\.equipment\\.commands",
+  "transforms.toEquipmentCommands.replacement": "equipment_commands",
+
+  "transforms.toLotEvents.type": "org.apache.kafka.connect.transforms.RegexRouter",
+  "transforms.toLotEvents.regex": "fab\\.lot\\.events",
+  "transforms.toLotEvents.replacement": "lot_events",
+
+  "transforms.toAlerts.type": "org.apache.kafka.connect.transforms.RegexRouter",
+  "transforms.toAlerts.regex": "fab\\.alerts",
+  "transforms.toAlerts.replacement": "alerts",
+
+  "transforms.toWorkOrders.type": "org.apache.kafka.connect.transforms.RegexRouter",
+  "transforms.toWorkOrders.regex": "fab\\.maintenance\\.work-orders",
+  "transforms.toWorkOrders.replacement": "work_orders",
+
+  "transforms.toAiReports.type": "org.apache.kafka.connect.transforms.RegexRouter",
+  "transforms.toAiReports.regex": "fab\\.ai\\.incident-reports",
+  "transforms.toAiReports.replacement": "ai_incident_reports",
+
+  "table.name.format": "${topic}",
+  "insert.mode": "upsert",
+  "pk.mode": "kafka",
+  "auto.create": "false",
+  "auto.evolve": "false",
+
+  "errors.tolerance": "none",
+  "errors.log.enable": "true",
+  "errors.log.include.messages": "true"
+}

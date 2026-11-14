@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIDP-FAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090d13; --panel: #10161f; --panel-2: #0c1219; --line: #1d2734; --line-2: #263345;
+    --text: #e6edf3; --muted: #7f8c9b; --faint: #4a5868;
+    --green: #3fb950; --amber: #e3b341; --red: #ff5f5f; --purple: #b48cff; --cyan: #39c5cf; --blue: #58a6ff; --orange: #f0a35e;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; min-height: 100vh; }
+  .mono { font-family: var(--mono); }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 18px; padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0f1722 0%, var(--bg) 100%);
+  }
+  .logo {
+    width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center;
+    background: conic-gradient(from 210deg, #1c3a4d, #39c5cf, #58a6ff, #1c3a4d); box-shadow: 0 0 24px #39c5cf33;
+  }
+  .logo svg { width: 22px; height: 22px; }
+  .title h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .title p { margin: 1px 0 0; color: var(--muted); font-size: 12.5px; }
+  .spacer { flex: 1; }
+  .conn {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: var(--panel); font-size: 12.5px; color: var(--muted);
+  }
+  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .conn.ok i { background: var(--green); box-shadow: 0 0 10px var(--green); animation: blink 1.6s infinite; }
+  .conn b { color: var(--text); font-weight: 600; }
+  .clock { font-family: var(--mono); font-size: 15px; color: var(--muted); min-width: 76px; text-align: right; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  /* ---------- layout ---------- */
+  main {
+    display: grid; gap: 14px; padding: 14px 24px 24px;
+    grid-template-columns: minmax(330px, 1fr) minmax(440px, 1.55fr) minmax(360px, 1.1fr);
+    grid-template-areas:
+      "kpis   kpis   kpis"
+      "tools  chart  alerts"
+      "ai     ai     services"
+      "flink  flink  flink"
+      "flow   flow   lots"
+      "orders orders lots";
+  }
+  @media (max-width: 1250px) {
+    main { grid-template-columns: 1fr; grid-template-areas: "kpis" "tools" "chart" "alerts" "ai" "services" "flink" "flow" "lots" "orders"; }
+  }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .panel h2 {
+    margin: 0 0 12px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel h2 { white-space: nowrap; min-width: 0; }
+  .panel h2 .tag { font-family: var(--mono); text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 500; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .panel h2 .right { margin-left: auto; }
+
+  /* ---------- KPIs ---------- */
+  .kpis { grid-area: kpis; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; position: relative; overflow: hidden; }
+  .kpi .label { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .kpi .value { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .value small { font-size: 15px; color: var(--muted); font-weight: 500; }
+  .kpi .sub { color: var(--faint); font-size: 11.5px; }
+  .kpi::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--cyan)); }
+
+  /* ---------- equipment cards ---------- */
+  .tools { grid-area: tools; }
+  .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tool {
+    --c: var(--green);
+    border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 11px 9px; background: var(--panel-2);
+    cursor: pointer; position: relative; transition: border-color .2s, box-shadow .2s, transform .1s; overflow: hidden;
+  }
+  .tool:hover { border-color: #3a4a5f; }
+  .tool.selected { border-color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); }
+  .tool.WARNING { --c: var(--amber); border-color: #6b5520; }
+  .tool.CRITICAL { --c: var(--red); border-color: #7a2a2a; animation: alarm 1s infinite; }
+  .tool.DOWN { --c: var(--purple); border-color: #4b3a72;
+    background: repeating-linear-gradient(135deg, #141026 0 10px, #110d1f 10px 20px); }
+  .tool[data-status="NO DATA"] { --c: var(--faint); }
+  @keyframes alarm { 50% { box-shadow: 0 0 0 1px var(--red), 0 0 22px #ff5f5f55; } }
+  .tool .row1 { display: flex; align-items: center; gap: 8px; }
+  .tool .name { font-family: var(--mono); font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .pill {
+    margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; padding: 2px 8px; border-radius: 999px;
+    color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  }
+  .tool .type { color: var(--faint); font-size: 11px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tool .metric { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .tool .metric span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tool .metric b { margin-left: auto; font-family: var(--mono); font-size: 15px; color: var(--c); font-weight: 600; }
+  .pill { white-space: nowrap; }
+  .tool svg.spark { width: 100%; height: 30px; display: block; margin-top: 4px; }
+  .tool .foot { display: flex; align-items: center; margin-top: 4px; font-size: 11px; color: var(--faint); }
+  .tool button {
+    margin-left: auto; font: 600 11px Inter, sans-serif; color: var(--text); background: #1a2330; border: 1px solid var(--line-2);
+    border-radius: 6px; padding: 3px 8px; cursor: pointer;
+  }
+  .tool button:hover { background: #3a1d22; border-color: var(--red); color: #ffd0d0; }
+  .tool button:disabled { opacity: .4; cursor: not-allowed; background: #1a2330; color: var(--muted); border-color: var(--line-2); }
+
+  /* ---------- SPC chart ---------- */
+  .chart { grid-area: chart; display: flex; flex-direction: column; }
+  .chart-wrap { position: relative; flex: 1; min-height: 300px; }
+  canvas#spc { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; }
+  .legend span { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .legend i { width: 14px; height: 3px; border-radius: 2px; }
+  .legend b { font-family: var(--mono); color: var(--text); font-weight: 500; }
+  .toggle { font: 500 12px Inter, sans-serif; color: var(--muted); display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .toggle input { accent-color: var(--cyan); }
+  .chart-note { font-size: 12px; color: var(--muted); margin-bottom: 8px; min-height: 18px; }
+  .chart-note.WARNING { color: var(--amber); } .chart-note.CRITICAL { color: var(--red); } .chart-note.DOWN { color: var(--purple); }
+
+  /* ---------- alerts ---------- */
+  .alerts { grid-area: alerts; display: flex; flex-direction: column; }
+  .feed { flex: 1; overflow-y: auto; max-height: 470px; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .alert { --c: var(--amber); border: 1px solid var(--line-2); border-left: 3px solid var(--c); border-radius: 8px; padding: 8px 10px; background: var(--panel-2); }
+  .alert.CRITICAL { --c: var(--red); } .alert.INFO { --c: var(--blue); }
+  .alert.new { animation: slidein .5s ease-out; }
+  @keyframes slidein { from { opacity: 0; transform: translateX(14px); background: color-mix(in srgb, var(--c) 18%, var(--panel-2)); } }
+  .alert .top { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+  .alert .sev { font-weight: 700; color: var(--c); letter-spacing: .05em; font-size: 10.5px; }
+  .alert .src { color: var(--muted); font-family: var(--mono); }
+  .alert .time { margin-left: auto; color: var(--faint); font-family: var(--mono); }
+  .alert .msg { margin-top: 3px; font-size: 13px; }
+  .alert .meta { margin-top: 3px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+  .empty { color: var(--faint); font-size: 13px; padding: 18px 4px; text-align: center; }
+
+  /* ---------- flow ---------- */
+  .flow { grid-area: flow; }
+  svg#flow { width: 100%; height: auto; display: block; }
+  .node rect { fill: var(--panel-2); stroke: var(--line-2); stroke-width: 1; }
+  .node text { fill: var(--text); font: 600 12.5px Inter, sans-serif; }
+  .node text.sub { fill: var(--muted); font: 500 10.5px Inter, sans-serif; }
+  .node.topic rect { fill: #0e1822; }
+  .node.topic text.name { font: 600 11.5px var(--mono); }
+  .node.topic text.count { font: 600 11px var(--mono); fill: var(--muted); text-anchor: end; }
+  .node.topic.flash rect { animation: tflash .6s ease-out; }
+  @keyframes tflash { from { fill: #1d3346; } }
+  .edge { fill: none; stroke-width: 1.4; opacity: .38; }
+  .edge.back { stroke-dasharray: 4 4; }
+  .col-label { fill: var(--faint); font: 600 10.5px Inter, sans-serif; letter-spacing: .1em; }
+
+  /* ---------- lots ---------- */
+  .lots { grid-area: lots; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; color: var(--faint); font-weight: 600; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; padding: 0 6px 8px; }
+  th:first-child, td:first-child { padding-left: 0; }
+  td { padding: 6px 5px; border-top: 1px solid var(--line); white-space: nowrap; }
+  td.mono { font-size: 12px; }
+  .route { display: flex; gap: 3px; }
+  .route i { width: 11px; height: 6px; border-radius: 2px; background: #1d2734; }
+  .route i.done { background: #2f6f86; } .route i.now { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+  .st { font-weight: 700; font-size: 11px; letter-spacing: .04em; }
+  .st.RUN { color: var(--cyan); } .st.PASS { color: var(--green); } .st.LOW { color: var(--amber); }
+  .st.HOLD { color: var(--red); background: #3a1416; padding: 2px 7px; border-radius: 5px; }
+  tr.HOLD td { background: #1a0f12; }
+
+  /* ---------- work orders ---------- */
+  .orders { grid-area: orders; }
+  .wo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .wo { border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 11px; background: var(--panel-2); --c: var(--green); }
+  .wo.OPEN { --c: var(--purple); border-color: #4b3a72; }
+  .wo .top { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .wo .id { font-family: var(--mono); font-weight: 600; }
+  .wo .wo-tool { font-family: var(--mono); color: var(--muted); }
+  .wo .pill { --c: inherit; }
+  .wo.OPEN .pill { animation: blink 1.2s infinite; }
+  .wo .detail { font-size: 12.5px; margin-top: 4px; }
+  .wo .who { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+
+  /* ---------- AI incident reports ---------- */
+  .ai { grid-area: ai; display: flex; flex-direction: column; }
+  .ai-badge { margin-left: auto; text-transform: none; letter-spacing: 0; font: 600 11px var(--mono); padding: 3px 9px;
+    border-radius: 999px; color: var(--purple); border: 1px solid #4b3a72; background: #1a1430; }
+  .report { border: 1px solid #3a2f5c; border-radius: 10px; background: linear-gradient(180deg, #151026, var(--panel-2)); padding: 12px 14px; }
+  .report.new { animation: aiglow 2.4s ease-out; }
+  @keyframes aiglow { from { box-shadow: 0 0 0 1px var(--purple), 0 0 34px #b48cff55; } }
+  .report .head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .report .inc { font: 700 15px var(--mono); }
+  .report .meta { color: var(--muted); font-size: 12px; }
+  .report .by { margin-left: auto; font: 500 11px var(--mono); color: var(--faint); }
+  .report .body { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 4px 22px; margin-top: 10px; }
+  .report .sec h4 { margin: 8px 0 3px; font-size: 10.5px; letter-spacing: .1em; color: var(--purple); }
+  .report .sec p { margin: 2px 0; font-size: 13px; line-height: 1.45; }
+  .older { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .older div { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .ai-wait { color: var(--muted); font-size: 13px; padding: 10px 2px; line-height: 1.6; }
+  .ai-wait .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--purple); margin-right: 6px; animation: blink 1.2s infinite; }
+
+  /* ---------- services / consumer lag ---------- */
+  .services { grid-area: services; }
+  .svc { display: grid; grid-template-columns: minmax(0, 1fr) 64px 46px 62px; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); }
+  .svc > div { min-width: 0; }
+  .svc:first-of-type { border-top: 0; }
+  .svc .n { font: 600 12.5px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .svc .rw { font-size: 11px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .svc .lag { text-align: right; font: 600 13px var(--mono); }
+  .svc .lag small { display: block; font: 500 10px Inter, sans-serif; color: var(--faint); }
+  .svc svg { width: 64px; height: 22px; display: block; }
+  .svc .st { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; }
+  .svc .st.on { color: var(--green); } .svc .st.off { color: var(--red); } .svc .st.ext { color: var(--faint); }
+  .svc button { font: 600 11px Inter, sans-serif; border-radius: 6px; padding: 4px 0; cursor: pointer; width: 100%;
+    color: var(--text); background: #1a2330; border: 1px solid var(--line-2); }
+  .svc button.stop:hover { background: #3a1d22; border-color: var(--red); color: #ffd0d0; }
+  .svc button.start { background: #12301c; border-color: #2c6b3c; color: #b9f3c6; }
+  .svc button:disabled { opacity: .45; cursor: wait; }
+  .svc.down { background: linear-gradient(90deg, #2a1215, transparent); }
+  .svc-note { font-size: 11.5px; color: var(--faint); margin-top: 8px; line-height: 1.5; }
+
+  /* ---------- Flink analytics ---------- */
+  .flink { grid-area: flink; }
+  .flink-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 1000px) { .flink-grid { grid-template-columns: 1fr; } }
+  .fcard { border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2); padding: 10px 12px; min-width: 0; }
+  .fcard h3 { margin: 0 0 2px; font-size: 13px; font-weight: 600; }
+  .fcard .q { font: 500 10.5px var(--mono); color: var(--faint); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fcard .big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .fcard .big small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+  .fcard svg.bars { width: 100%; height: 86px; display: block; margin-top: 4px; }
+  .hbar { display: grid; grid-template-columns: 74px 1fr 30px; align-items: center; gap: 8px; font-size: 12px; margin: 5px 0; }
+  .hbar .t { font-family: var(--mono); color: var(--muted); }
+  .hbar .track { height: 10px; background: #18212d; border-radius: 3px; overflow: hidden; }
+  .hbar .fill { height: 100%; border-radius: 3px; transition: width .6s; }
+  .hbar .v { text-align: right; font-family: var(--mono); }
+  .flink-empty { color: var(--muted); font-size: 13px; padding: 6px 2px; line-height: 1.6; }
+  .flink-empty code, .svc-note code { font-family: var(--mono); color: var(--cyan); }
+  a.ext { color: var(--cyan); text-decoration: none; font-family: var(--mono); text-transform: none; letter-spacing: 0; font-weight: 500; }
+  a.ext:hover { text-decoration: underline; }
+
+  /* ---------- toast ---------- */
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: #13202c; border: 1px solid var(--cyan); color: var(--text); padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; box-shadow: 0 10px 40px #000a; transition: all .3s; pointer-events: none; z-index: 10;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast code { font-family: var(--mono); color: var(--cyan); }
+  ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: #243041; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#06121a" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M7 12h10M12 7v10M8.5 8.5l7 7M15.5 8.5l-7 7" stroke-width="1.2"/></svg>
+  </div>
+  <div class="title">
+    <h1>AIDP-FAB</h1>
+    <p>Every number on this page comes from Kafka events &mdash; no service calls another directly</p>
+  </div>
+  <div class="spacer"></div>
+  <div class="conn" id="conn"><i></i><span>Connecting&hellip;</span></div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<main>
+  <section class="kpis">
+    <div class="kpi" style="--accent: var(--cyan)"><div class="label">Events per second</div><div class="value" id="k-rate">0</div><div class="sub" id="k-total">0 events received</div></div>
+    <div class="kpi" style="--accent: var(--green)"><div class="label">Tools available</div><div class="value" id="k-tools">-</div><div class="sub">not under maintenance</div></div>
+    <div class="kpi" style="--accent: var(--purple)"><div class="label">Open work orders</div><div class="value" id="k-wo">0</div><div class="sub">opened automatically from alerts</div></div>
+    <div class="kpi" style="--accent: var(--red)"><div class="label">Lots put on hold</div><div class="value" id="k-hold">0</div><div class="sub" id="k-done">0 lots completed</div></div>
+    <div class="kpi" style="--accent: var(--amber)"><div class="label">Line yield</div><div class="value" id="k-yield">-</div><div class="sub">average of last 10 lots</div></div>
+  </section>
+
+  <section class="panel tools">
+    <h2>Process equipment <span class="tag">fab.equipment.sensor-readings</span></h2>
+    <div class="tool-grid" id="tools"></div>
+  </section>
+
+  <section class="panel chart">
+    <h2>SPC control chart &middot; <span id="chart-tool" class="mono" style="color:var(--text);letter-spacing:0">-</span>
+      <label class="toggle right"><input type="checkbox" id="follow" checked> follow alerts</label>
+    </h2>
+    <div class="chart-note" id="chart-note"></div>
+    <div class="chart-wrap"><canvas id="spc"></canvas></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="panel alerts">
+    <h2>Live alerts <span class="tag">fab.alerts</span></h2>
+    <div class="feed" id="alerts"><div class="empty">No alerts yet &mdash; the fab is healthy.<br>Click <b>Inject fault</b> on a tool to break it.</div></div>
+  </section>
+
+  <section class="panel ai">
+    <h2>AI root-cause assistant <span class="tag">fab.ai.incident-reports</span><span class="ai-badge" id="ai-by">waiting</span></h2>
+    <div id="ai-report"><div class="ai-wait"><span class="dot"></span>Listening to lot holds, alerts and work orders.
+      When lots are put on hold, the assistant collects the related events from Kafka and writes an incident report here.</div></div>
+    <div class="older" id="ai-older"></div>
+  </section>
+
+  <section class="panel services">
+    <h2>Services &amp; consumer lag <span class="tag">lag = events waiting in Kafka</span></h2>
+    <div id="services"></div>
+    <div class="svc-note" id="svc-note">Stop a service and its events wait safely in Kafka &mdash; its lag grows. Start it again and it catches up from its last committed offset.</div>
+  </section>
+
+  <section class="panel flink">
+    <h2>Flink SQL &middot; live stream analytics <span class="tag">fab.analytics.*</span>
+      <a class="ext right" href="http://localhost:8081" target="_blank" rel="noopener">Flink UI :8081</a>
+      <a class="ext" href="http://localhost:8090" target="_blank" rel="noopener">Kafbat UI :8090</a></h2>
+    <div id="flink"></div>
+  </section>
+
+  <section class="panel flow">
+    <h2>Kafka event flow <span class="tag">dots = real messages moving through topics</span></h2>
+    <svg id="flow" viewBox="0 0 960 284" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+
+  <section class="panel lots">
+    <h2>Wafer lots <span class="tag">fab.lot.events</span></h2>
+    <table>
+      <thead><tr><th>Lot</th><th>Route</th><th>Tool</th><th>Yield</th><th>Status</th></tr></thead>
+      <tbody id="lots"><tr><td colspan="5" class="empty">Waiting for lots&hellip;</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="panel orders">
+    <h2>Maintenance work orders <span class="tag">fab.maintenance.work-orders</span></h2>
+    <div class="wo-list" id="orders"><div class="empty">No work orders.</div></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const hhmmss = (iso) => new Date(iso).toLocaleTimeString([], { hour12: false });
+const PARAM_COLORS = ["#39c5cf", "#58a6ff", "#b48cff", "#f0a35e"];
+const STATUS_COLOR = { UP: "#3fb950", WARNING: "#e3b341", CRITICAL: "#ff5f5f", DOWN: "#b48cff", "NO DATA": "#4a5868" };
+
+let snap = null;
+let selected = null;
+const seenAlerts = new Set();
+let firstRender = true;
+
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString([], { hour12: false }); }, 500);
+
+/* ============================== equipment cards ============================== */
+function buildTools(tools) {
+  $("tools").innerHTML = tools.map((t) => `
+    <div class="tool" id="tool-${t.id}" data-id="${t.id}">
+      <div class="row1"><span class="name">${t.id}</span><span class="pill" data-f="status">-</span></div>
+      <div class="type" title="${esc(t.type)} · ${esc(t.recipe)}">${esc(t.type)}</div>
+      <div class="metric"><span data-f="param">-</span><b data-f="z">-</b></div>
+      <svg class="spark" viewBox="0 0 120 30" preserveAspectRatio="none" data-f="spark"></svg>
+      <div class="foot"><span data-f="count">0 readings</span><button data-inject="${t.id}">Inject fault</button></div>
+    </div>`).join("");
+  document.querySelectorAll(".tool").forEach((el) =>
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      selected = el.dataset.id; $("follow").checked = false; render();
+    }));
+  document.querySelectorAll("button[data-inject]").forEach((b) =>
+    b.addEventListener("click", () => injectFault(b.dataset.inject, b)));
+}
+
+function sparkSvg(values, color) {
+  const n = 40, w = 120, h = 30, max = 4.5;
+  if (!values.length) return "";
+  const xs = (i) => (w * (i + n - values.length)) / (n - 1);
+  const ys = (v) => h - 2 - (Math.min(v, max) / max) * (h - 4);
+  const pts = values.map((v, i) => `${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
+  const limit = ys(3).toFixed(1);
+  return `<line x1="0" x2="${w}" y1="${limit}" y2="${limit}" stroke="#ff5f5f" stroke-width=".6" stroke-dasharray="2 2" opacity=".7"/>
+          <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`;
+}
+
+function renderTools(tools) {
+  tools.forEach((t) => {
+    const el = $("tool-" + t.id);
+    if (!el) return;
+    el.className = `tool ${t.status === "NO DATA" ? "" : t.status}${t.id === selected ? " selected" : ""}`;
+    el.dataset.status = t.status;
+    const f = (k) => el.querySelector(`[data-f="${k}"]`);
+    f("status").textContent = t.status === "NO DATA" ? "WAITING" : t.status;
+    f("param").textContent = t.status === "DOWN" ? "under maintenance" : (t.worst_param || "no data yet");
+    f("z").textContent = t.status === "DOWN" || !t.worst_param ? "" : `z ${t.worst_z >= 0 ? "+" : ""}${t.worst_z.toFixed(2)}`;
+    f("spark").innerHTML = sparkSvg(t.trend, STATUS_COLOR[t.status]);
+    f("count").textContent = `${t.count} readings`;
+    el.querySelector("button").disabled = t.status === "DOWN";
+  });
+}
+
+/* ================================ SPC chart ================================= */
+function drawChart(tool) {
+  const canvas = $("spc"), wrap = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (!tool) return;
+
+  const pad = { l: 46, r: 16, t: 10, b: 22 };
+  const N = 120;
+  let lim = 5;
+  tool.params.forEach((p) => p.z.forEach((z) => { lim = Math.max(lim, Math.ceil(Math.abs(z))); }));
+  lim = Math.min(lim, 9);
+  const x = (i, len) => pad.l + ((W - pad.l - pad.r) * (i + N - len)) / (N - 1);
+  const y = (z) => pad.t + ((lim - Math.max(-lim, Math.min(lim, z))) / (2 * lim)) * (H - pad.t - pad.b);
+
+  // zones
+  const band = (a, b, color) => { ctx.fillStyle = color; ctx.fillRect(pad.l, y(b), W - pad.l - pad.r, y(a) - y(b)); };
+  band(3, lim, "rgba(255,95,95,0.07)"); band(-lim, -3, "rgba(255,95,95,0.07)");
+  band(1, 3, "rgba(227,179,65,0.035)"); band(-3, -1, "rgba(227,179,65,0.035)");
+  band(-1, 1, "rgba(63,185,80,0.045)");
+
+  // grid lines + labels
+  ctx.font = "11px JetBrains Mono, monospace"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+  for (let z = -lim; z <= lim; z++) {
+    if (z % 1) continue;
+    const special = Math.abs(z) === 3 || z === 0;
+    ctx.strokeStyle = special ? (z === 0 ? "#3a4a5f" : "#ff5f5f") : "#1a2430";
+    ctx.setLineDash(Math.abs(z) === 3 ? [6, 4] : []);
+    ctx.lineWidth = special ? 1.2 : 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y(z)); ctx.lineTo(W - pad.r, y(z)); ctx.stroke();
+    ctx.fillStyle = Math.abs(z) === 3 ? "#ff8a8a" : "#4a5868";
+    const lbl = z === 3 ? "UCL" : z === -3 ? "LCL" : z === 0 ? "target" : (z > 0 ? "+" : "") + z + "σ";
+    if (z === 0 || Math.abs(z) === 3 || Math.abs(z) % 2 === 1 || lim <= 5) ctx.fillText(lbl, pad.l - 6, y(z));
+  }
+  ctx.setLineDash([]);
+  ctx.textAlign = "left"; ctx.fillStyle = "#4a5868";
+  ctx.fillText("← older readings", pad.l + 4, H - 9);
+  ctx.textAlign = "right"; ctx.fillText("now →", W - pad.r, H - 9);
+
+  // series
+  tool.params.forEach((p, k) => {
+    const color = PARAM_COLORS[k % PARAM_COLORS.length], len = p.z.length;
+    if (!len) return;
+    ctx.strokeStyle = color; ctx.lineWidth = 1.7; ctx.lineJoin = "round";
+    ctx.beginPath();
+    p.z.forEach((z, i) => (i ? ctx.lineTo(x(i, len), y(z)) : ctx.moveTo(x(i, len), y(z))));
+    ctx.stroke();
+    p.z.forEach((z, i) => {
+      if (Math.abs(z) > 3) {
+        ctx.fillStyle = "#ff5f5f"; ctx.beginPath(); ctx.arc(x(i, len), y(z), 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#090d13"; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    });
+    // last point marker
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x(len - 1, len), y(p.z[len - 1]), 3, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function renderChart(tool) {
+  $("chart-tool").textContent = tool ? `${tool.id}  (${tool.type})` : "-";
+  const note = $("chart-note");
+  note.className = "chart-note " + (tool ? tool.status : "");
+  note.textContent = !tool ? "" :
+    tool.status === "DOWN" ? "Tool is down for maintenance — no readings until the work order is completed." :
+    tool.alert_msg ? tool.alert_msg :
+    "z-score = how many standard deviations each reading is from target. Beyond ±3σ (red lines) = out of control.";
+  $("legend").innerHTML = tool ? tool.params.map((p, k) => `
+    <span><i style="background:${PARAM_COLORS[k]}"></i>${esc(p.name)} <b>${p.last ?? "-"} ${esc(p.unit)}</b></span>`).join("") : "";
+  drawChart(tool);
+}
+
+/* ================================== alerts ================================== */
+function renderAlerts(alerts) {
+  if (!alerts.length) return;
+  $("alerts").innerHTML = alerts.map((a) => {
+    const isNew = !seenAlerts.has(a.id) && !firstRender;
+    return `<div class="alert ${a.severity}${isNew ? " new" : ""}">
+      <div class="top"><span class="sev">${a.severity}</span><span class="src">${esc(a.source)}</span><span class="time">${hhmmss(a.time)}</span></div>
+      <div class="msg">${esc(a.message)}</div>
+      <div class="meta">${esc(a.topic)} · partition ${a.partition} · offset ${a.offset}</div>
+    </div>`;
+  }).join("");
+}
+
+/* =================================== lots =================================== */
+function renderLots(lots, route) {
+  if (!lots.length) return;
+  $("lots").innerHTML = lots.map((l) => {
+    const segs = route.map((_, i) => `<i class="${i < l.step_index ? "done" : i === l.step_index ? "now" : ""}"></i>`).join("");
+    const where = l.step === "DONE" ? "complete" : l.tool;
+    const y = l.yield == null ? "–" : `${l.yield}%`;
+    return `<tr class="${l.status}"><td class="mono">${esc(l.lot_id)}</td><td><div class="route">${segs}</div></td>
+      <td class="mono" style="color:var(--muted)">${esc(where)}</td><td class="mono">${y}</td>
+      <td><span class="st ${l.status}">${l.status}</span></td></tr>`;
+  }).join("");
+}
+
+/* =============================== work orders ================================ */
+function renderOrders(orders) {
+  if (!orders.length) return;
+  $("orders").innerHTML = orders.map((o) => `
+    <div class="wo ${o.status}">
+      <div class="top"><span class="id">${esc(o.id)}</span><span class="wo-tool">${esc(o.tool_id)}</span>
+        <span class="pill" style="--c:${o.status === "OPEN" ? "var(--purple)" : "var(--green)"}">${o.status === "OPEN" ? "OPEN · REPAIRING" : "DONE"}</span></div>
+      <div class="detail">${esc(o.detail)}</div>
+      <div class="who">${esc(o.assigned_to)} · ${hhmmss(o.time)}</div>
+    </div>`).join("");
+}
+
+/* ============================== Kafka flow diagram =========================== */
+const T = {
+  sensor: "fab.equipment.sensor-readings", cmd: "fab.equipment.commands", lot: "fab.lot.events",
+  alert: "fab.alerts", wo: "fab.maintenance.work-orders",
+};
+const TOPIC_COLOR = { [T.sensor]: "#39c5cf", [T.cmd]: "#f0a35e", [T.lot]: "#58a6ff", [T.alert]: "#ff5f5f", [T.wo]: "#b48cff" };
+const NODES = {
+  sim:  { x: 14,  y: 36,  w: 180, h: 44, label: "Equipment simulator", sub: "producer · 6 tools" },
+  mes:  { x: 14,  y: 126, w: 180, h: 44, label: "Lot tracker (MES)",   sub: "producer · wafer lots" },
+  op:   { x: 14,  y: 216, w: 180, h: 44, label: "Operator (this page)", sub: "Inject fault button" },
+  t_sensor: { x: 336, y: 26,  w: 290, h: 34, topic: T.sensor },
+  t_cmd:    { x: 336, y: 76,  w: 290, h: 34, topic: T.cmd },
+  t_lot:    { x: 336, y: 126, w: 290, h: 34, topic: T.lot },
+  t_alert:  { x: 336, y: 176, w: 290, h: 34, topic: T.alert },
+  t_wo:     { x: 336, y: 226, w: 290, h: 34, topic: T.wo },
+  spc:  { x: 766, y: 22,  w: 180, h: 44, label: "SPC monitor",        sub: "group: spc-monitor" },
+  yld:  { x: 766, y: 86,  w: 180, h: 44, label: "Yield monitor",      sub: "group: yield-monitor" },
+  mnt:  { x: 766, y: 150, w: 180, h: 44, label: "Maintenance service", sub: "group: maintenance-service" },
+  dash: { x: 766, y: 214, w: 180, h: 44, label: "This dashboard",     sub: "own group · reads all topics" },
+};
+const EDGES = [
+  ["sim", "t_sensor"], ["op", "t_cmd"], ["mes", "t_lot"],
+  ["t_sensor", "spc"], ["t_lot", "yld"], ["t_alert", "yld"], ["t_alert", "mnt"],
+  ["spc", "t_alert"], ["yld", "t_alert"], ["mnt", "t_wo"],
+  ["t_cmd", "sim"], ["t_wo", "sim"], ["t_wo", "mes"], ["t_alert", "mes"],
+];
+const edgeEls = [];
+const lastPulse = new Map();
+let prevCounts = null;
+
+function edgePath(a, b) {
+  const A = NODES[a], B = NODES[b];
+  const forward = B.x > A.x;
+  const sx = forward ? A.x + A.w : A.x, sy = A.y + A.h / 2;
+  const ex = forward ? B.x : B.x + B.w, ey = B.y + B.h / 2;
+  const dx = Math.abs(ex - sx) * 0.5;
+  return `M${sx},${sy} C${sx + (forward ? dx : -dx)},${sy} ${ex + (forward ? -dx : dx)},${ey} ${ex},${ey}`;
+}
+
+function buildFlow() {
+  const svg = $("flow");
+  const ns = "http://www.w3.org/2000/svg";
+  let html = `<text class="col-label" x="14" y="16">PRODUCERS</text>
+              <text class="col-label" x="336" y="16">KAFKA TOPICS (your broker)</text>
+              <text class="col-label" x="766" y="14">CONSUMERS</text>`;
+  EDGES.forEach(([a, b], i) => {
+    const topic = (NODES[a].topic || NODES[b].topic);
+    const back = !(NODES[b].x > NODES[a].x);
+    html += `<path id="edge-${i}" class="edge${back ? " back" : ""}" d="${edgePath(a, b)}" stroke="${TOPIC_COLOR[topic]}"/>`;
+  });
+  Object.entries(NODES).forEach(([id, n]) => {
+    if (n.topic) {
+      const c = TOPIC_COLOR[n.topic];
+      html += `<g class="node topic" id="node-${id}">
+        <rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="17" style="stroke:${c}66"/>
+        <circle cx="${n.x + 16}" cy="${n.y + n.h / 2}" r="4" fill="${c}"/>
+        <text class="name" x="${n.x + 28}" y="${n.y + n.h / 2 + 4}">${n.topic}</text>
+        <text class="count" id="count-${id}" x="${n.x + n.w - 14}" y="${n.y + n.h / 2 + 4}">0</text></g>`;
+    } else {
+      html += `<g class="node"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="8"/>
+        <text x="${n.x + 12}" y="${n.y + 19}">${n.label}</text>
+        <text class="sub" x="${n.x + 12}" y="${n.y + 34}">${n.sub}</text></g>`;
+    }
+  });
+  html += `<g id="pulses"></g>`;
+  svg.innerHTML = html;
+  EDGES.forEach((e, i) => edgeEls.push({ a: e[0], b: e[1], el: $("edge-" + i) }));
+  void ns;
+}
+
+function pulse(edge, color, delay) {
+  const key = edge.a + edge.b, now = performance.now();
+  if (now - (lastPulse.get(key) || 0) < 260) return;
+  lastPulse.set(key, now);
+  setTimeout(() => {
+    const ns = "http://www.w3.org/2000/svg";
+    const c = document.createElementNS(ns, "circle");
+    c.setAttribute("r", "3.6"); c.setAttribute("fill", color);
+    c.setAttribute("style", `filter: drop-shadow(0 0 4px ${color})`);
+    const m = document.createElementNS(ns, "animateMotion");
+    m.setAttribute("dur", "0.85s"); m.setAttribute("fill", "freeze"); m.setAttribute("begin", "indefinite");
+    m.setAttribute("path", edge.el.getAttribute("d"));
+    c.appendChild(m); $("pulses").appendChild(c);
+    try { m.beginElement(); } catch (_) { /* older browsers */ }
+    setTimeout(() => c.remove(), 900);
+  }, delay);
+}
+
+function renderFlow(counts) {
+  Object.entries(NODES).forEach(([id, n]) => {
+    if (!n.topic) return;
+    const now = counts[n.topic] || 0;
+    $("count-" + id).textContent = now.toLocaleString();
+    if (prevCounts && now > (prevCounts[n.topic] || 0)) {
+      const g = $("node-" + id); g.classList.remove("flash"); void g.getBBox(); g.classList.add("flash");
+      const color = TOPIC_COLOR[n.topic];
+      edgeEls.filter((e) => e.b === id).forEach((e) => pulse(e, color, 0));
+      edgeEls.filter((e) => e.a === id).forEach((e) => pulse(e, color, 420));
+    }
+  });
+  prevCounts = { ...counts };
+}
+
+/* =============================== AI incident reports ========================== */
+const HEADINGS = ["SUMMARY", "TIMELINE", "ROOT CAUSE", "IMPACT", "ACTIONS TAKEN", "RECOMMENDATIONS"];
+let lastReportId = null;
+function reportSections(text) {
+  const out = []; let cur = null;
+  String(text || "").split(/\r?\n/).forEach((raw) => {
+    const line = raw.replace(/^[#*\s]+|[*]+$/g, "").trim();
+    if (!line) return;
+    const head = HEADINGS.find((h) => line.toUpperCase().replace(/:$/, "") === h);
+    if (head) { cur = { title: head, lines: [] }; out.push(cur); return; }
+    if (!cur) { cur = { title: "", lines: [] }; out.push(cur); }
+    cur.lines.push(line.replace(/^[-•]\s*/, ""));
+  });
+  return out;
+}
+function renderAi(reports) {
+  if (!reports.length) return;
+  const r = reports[0];
+  $("ai-by").textContent = r.generated_by;
+  const isNew = r.event_id !== lastReportId && lastReportId !== null;
+  if (r.event_id !== lastReportId) {
+    const secs = reportSections(r.report).map((sec) => `<div class="sec">${sec.title ? `<h4>${sec.title}</h4>` : ""}
+      ${sec.lines.map((l) => `<p>${esc(l)}</p>`).join("")}</div>`).join("");
+    $("ai-report").innerHTML = `<div class="report${isNew ? " new" : ""}">
+      <div class="head"><span class="inc">${esc(r.incident_id)}</span>
+        <span class="meta">${esc(r.suspect_tool)} &middot; ${r.lots_held} lots held &middot; avg yield ${r.avg_yield_pct}% &middot; ${hhmmss(r.event_time)}</span>
+        <span class="by">written in ${r.generation_seconds}s</span></div>
+      <div class="body">${secs}</div></div>`;
+    $("ai-older").innerHTML = reports.slice(1, 4).map((o) =>
+      `<div>${hhmmss(o.event_time)} &middot; ${esc(o.incident_id)} &middot; ${esc(o.suspect_tool)} &middot; ${o.lots_held} lots &middot; ${esc(o.generated_by)}</div>`).join("");
+    lastReportId = r.event_id;
+  }
+}
+
+/* ============================ services & consumer lag ========================= */
+const pendingSvc = new Set();
+function lagSpark(hist) {
+  if (!hist || hist.length < 2) return "";
+  const max = Math.max(10, ...hist), w = 74, h = 22;
+  const pts = hist.map((v, i) => `${(w * i / (hist.length - 1)).toFixed(1)},${(h - 2 - (v / max) * (h - 4)).toFixed(1)}`).join(" ");
+  const color = hist[hist.length - 1] > 50 ? "#ff5f5f" : "#39c5cf";
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+let lastSvcKey = "";
+function renderServices(services, managed) {
+  const key = JSON.stringify([services, [...pendingSvc]]);
+  if (key === lastSvcKey) return;
+  lastSvcKey = key;
+  $("services").innerHTML = services.map((sv) => {
+    const lag = sv.lag == null ? "–" : sv.lag.toLocaleString();
+    let state, btn = "";
+    if (!sv.managed) {
+      state = `<span class="st ext">${sv.name.includes("Connect") ? "DOCKER" : "–"}</span>`;
+    } else if (sv.running) {
+      state = `<span class="st on">RUNNING</span>`;
+      btn = `<button class="stop" data-svc="${sv.name}" data-act="stop" ${pendingSvc.has(sv.name) ? "disabled" : ""}>Stop</button>`;
+    } else {
+      state = `<span class="st off">STOPPED</span>`;
+      btn = `<button class="start" data-svc="${sv.name}" data-act="start" ${pendingSvc.has(sv.name) ? "disabled" : ""}>Start</button>`;
+    }
+    return `<div class="svc${sv.managed && !sv.running ? " down" : ""}">
+      <div><div class="n">${esc(sv.name)}</div><div class="rw">${esc(sv.reads)} &rarr; ${esc(sv.writes)}</div></div>
+      <div>${lagSpark(sv.history)}</div>
+      <div class="lag" style="color:${sv.lag > 50 ? "var(--red)" : "var(--text)"}">${lag}<small>lag</small></div>
+      <div>${btn || state}${btn ? `<div style="text-align:center;margin-top:3px">${state}</div>` : ""}</div>
+    </div>`;
+  }).join("");
+  if (!managed) $("svc-note").innerHTML = "Stop/Start buttons appear when the demo is started with <code>python run_demo.py</code>.";
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-svc]");
+  if (!b) return;
+  const name = b.dataset.svc, act = b.dataset.act;
+  pendingSvc.add(name); b.disabled = true; lastSvcKey = "";
+  try {
+    const r = await fetch(`/api/services/${name}/${act}`, { method: "POST" });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    toast(act === "stop"
+      ? `Stopped <code>${name}</code>. Its events now pile up in Kafka &mdash; watch its lag grow.`
+      : `Started <code>${name}</code>. It resumes from its last committed offset and works through the backlog.`);
+  } catch (err) { toast(`Could not ${act} ${esc(name)}: ${esc(err.message)}`); }
+  finally { pendingSvc.delete(name); lastSvcKey = ""; }
+});
+
+/* ================================ Flink analytics ============================= */
+const flinkTime = (s) => new Date(String(s).replace(" ", "T").replace(/Z?$/, "Z"));
+function hbars(rows, keys, maxV, colorFor) {
+  return keys.map((k) => {
+    const v = rows[k] || 0;
+    return `<div class="hbar"><span class="t">${k}</span><div class="track"><div class="fill" style="width:${Math.min(100, (v / maxV) * 100)}%;background:${colorFor(k, v)}"></div></div><span class="v">${v}</span></div>`;
+  }).join("");
+}
+let lastFlinkKey = "";
+function renderFlink(f, tools) {
+  const key = JSON.stringify([f, tools.map((t) => t.status)]);
+  if (key === lastFlinkKey) return;
+  lastFlinkKey = key;
+  if (!f.any) {
+    $("flink").innerHTML = `<div class="flink-empty">No Flink results yet. The three Flink SQL jobs start with <code>python setup_demo.py init</code>
+      and publish their first results within about 10 seconds. Check them in the Flink UI at <code>localhost:8081</code>.</div>`;
+    return;
+  }
+  const ly = f.line_yield.slice(-36);
+  const last = ly[ly.length - 1];
+  const W = 360, H = 86, bw = W / 36;
+  const bars = ly.map((r, i) => {
+    const h = Math.max(2, (r.avg_yield / 100) * (H - 14));
+    const c = r.avg_yield >= 90 ? "#3fb950" : r.avg_yield >= 70 ? "#e3b341" : "#ff5f5f";
+    return `<rect x="${(i + 36 - ly.length) * bw + 1}" y="${H - h}" width="${bw - 2}" height="${h}" rx="1.5" fill="${c}"><title>${flinkTime(r.window_end).toLocaleTimeString([], { hour12: false })}: ${r.avg_yield}% (${r.lots} lots)</title></rect>`;
+  }).join("");
+  const guide = H - (90 / 100) * (H - 14);
+  const status = Object.fromEntries(tools.map((t) => [t.id, t.status]));
+  const toolIds = tools.map((t) => t.id);
+  const tp = f.throughput, al = f.alerts;
+  const tpMax = Math.max(4, ...Object.values(tp?.rows || {}));
+  const alMax = Math.max(4, ...Object.values(al?.rows || {}));
+  const alertTools = [...new Set([...toolIds, ...Object.keys(al?.rows || {})])];
+  $("flink").innerHTML = `<div class="flink-grid">
+    <div class="fcard"><h3>Line yield, last minute</h3>
+      <div class="q">SELECT AVG(yield_pct) ... HOP(10 s, 1 min) &rarr; fab.analytics.line-yield</div>
+      <div class="big" style="color:${!last ? "" : last.avg_yield >= 90 ? "var(--green)" : last.avg_yield >= 70 ? "var(--amber)" : "var(--red)"}">${last ? last.avg_yield + "%" : "–"}<small>${last ? `${last.lots} lots · ${last.lots_failed} failed` : ""}</small></div>
+      <svg class="bars" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <line x1="0" x2="${W}" y1="${guide}" y2="${guide}" stroke="#3fb950" stroke-dasharray="3 3" stroke-width=".8" opacity=".6"/>${bars}</svg></div>
+    <div class="fcard"><h3>Lots finished per tool, last minute</h3>
+      <div class="q">SELECT tool_id, COUNT(*) ... GROUP BY tool_id &rarr; fab.analytics.tool-throughput</div>
+      ${tp?.fresh ? hbars(tp.rows, toolIds, tpMax, (k, v) => status[k] === "DOWN" ? "#b48cff" : "#39c5cf") : `<div class="flink-empty">No lots finished in the last minute.</div>`}</div>
+    <div class="fcard"><h3>Alerts per tool, last minute</h3>
+      <div class="q">SELECT tool_id, COUNT(*) FROM alerts ... &rarr; fab.analytics.alert-counts</div>
+      ${al?.fresh && Object.keys(al.rows).length ? hbars(al.rows, alertTools.filter((k) => al.rows[k]), alMax, () => "#ff5f5f") : `<div class="flink-empty">No alerts in the last minute.</div>`}</div>
+  </div>`;
+}
+
+/* ================================== inject ================================== */
+let toastTimer;
+function toast(html) {
+  const t = $("toast"); t.innerHTML = html; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 4500);
+}
+async function injectFault(toolId, btn) {
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/inject", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool_id: toolId }) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || "failed");
+    selected = toolId; $("follow").checked = true;
+    toast(`Published <code>InjectFault</code> to <code>${d.topic}</code> &rarr; ${toolId} <code>${d.param}</code> will start drifting`);
+  } catch (e) {
+    toast(`Could not inject fault: ${esc(e.message)}`);
+  } finally { setTimeout(() => (btn.disabled = false), 1500); }
+}
+
+/* ================================== render ================================== */
+function render() {
+  if (!snap) return;
+  const s = snap;
+  const conn = $("conn");
+  conn.className = "conn" + (s.connected ? " ok" : "");
+  conn.querySelector("span").innerHTML = s.connected
+    ? `Streaming from Kafka <b class="mono">${esc(s.bootstrap)}</b>`
+    : `Waiting for Kafka at <b class="mono">${esc(s.bootstrap)}</b>`;
+
+  const total = Object.values(s.topic_counts).reduce((a, b) => a + b, 0);
+  $("k-rate").textContent = s.rate.toFixed(1);
+  $("k-total").textContent = `${total.toLocaleString()} events received`;
+  $("k-tools").innerHTML = `${s.kpi.tools_available}<small> / ${s.kpi.tools_total}</small>`;
+  $("k-wo").textContent = s.kpi.open_orders;
+  $("k-hold").textContent = s.kpi.lots_on_hold;
+  $("k-done").textContent = `${s.kpi.lots_completed} lots completed`;
+  $("k-yield").innerHTML = s.kpi.line_yield == null ? "–" : `${s.kpi.line_yield}<small>%</small>`;
+  $("k-yield").style.color = s.kpi.line_yield == null ? "" : s.kpi.line_yield >= 90 ? "var(--green)" : s.kpi.line_yield >= 70 ? "var(--amber)" : "var(--red)";
+
+  // follow the newest SPC alert on the chart
+  const newestSpc = s.alerts.find((a) => a.alert_type === "SPC_VIOLATION" || a.alert_type === "COMMAND");
+  if ($("follow").checked && newestSpc && !seenAlerts.has(newestSpc.id) && newestSpc.tool_id) selected = newestSpc.tool_id;
+  if (!selected) selected = (s.tools.find((t) => t.id === "ETCH-02") || s.tools[0]).id;
+
+  renderTools(s.tools);
+  renderChart(s.tools.find((t) => t.id === selected));
+  renderAlerts(s.alerts);
+  renderLots(s.lots, s.route);
+  renderOrders(s.orders);
+  renderFlow(s.topic_counts);
+  renderAi(s.ai_reports || []);
+  renderServices(s.services || [], s.managed);
+  renderFlink(s.flink || { any: false }, s.tools);
+
+  s.alerts.forEach((a) => seenAlerts.add(a.id));
+  firstRender = false;
+}
+
+/* ================================== start =================================== */
+buildFlow();
+fetch("/api/snapshot").then((r) => r.json()).then((s) => { snap = s; buildTools(s.tools); render(); connect(); })
+  .catch(() => { $("conn").querySelector("span").textContent = "Dashboard server not reachable"; setTimeout(() => location.reload(), 3000); });
+
+function connect() {
+  const es = new EventSource("/events");
+  es.onmessage = (e) => { snap = JSON.parse(e.data); render(); };
+  es.onerror = () => {
+    $("conn").className = "conn";
+    $("conn").querySelector("span").textContent = "Lost connection to dashboard server — retrying…";
+  };
+}
+window.addEventListener("resize", () => snap && renderChart(snap.tools.find((t) => t.id === selected)));
+</script>
+</body>
+</html>
